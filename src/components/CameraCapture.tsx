@@ -17,6 +17,12 @@ import {
 } from "@dnd-kit/sortable";
 import exifr from "exifr";
 import SortablePreviewItem from "./SortablePreviewItem";
+import { Camera, Plus, CalendarArrowUp, Undo2, ScanText } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type CameraCaptureProps = {
   onCapture: (imageDataUrls: string[]) => void;
@@ -153,10 +159,6 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
     if (item) setViewingImage(item.dataUrl);
   }, [previews]);
 
-  const handleCloseViewer = useCallback(() => {
-    setViewingImage(null);
-  }, []);
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -200,13 +202,13 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   if (previews.length > 0) {
     return (
       <div
-        className={`flex flex-col items-center gap-4 rounded-2xl border-3 border-dashed p-4 transition-colors ${isDragging ? "border-[#4ECDC4] bg-[#4ECDC4]/10" : "border-transparent"}`}
+        className={`flex flex-col items-center gap-4 rounded-2xl border-3 border-dashed p-4 transition-colors ${isDragging ? "border-secondary bg-secondary/10" : "border-transparent"}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {fileInput}
-        <p className="text-sm font-bold text-[#2D1B69]">
+        <p className="text-sm font-bold text-foreground">
           {previews.length}まいのしゃしん
         </p>
         <DndContext
@@ -232,59 +234,66 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
             </div>
           </SortableContext>
         </DndContext>
-        <p className="text-xs text-[#6B5B95]">
+        <p className="text-xs text-muted-foreground">
           長おしでドラッグして順番をかえられるよ
         </p>
+        <button
+          onClick={handleUsePhotos}
+          className="btn-secondary-gradient flex w-full max-w-xs items-center justify-center gap-2 rounded-full px-6 py-4 text-lg font-bold text-white"
+        >
+          <ScanText className="size-5" />
+          よみとる
+        </button>
         <div className="flex flex-wrap justify-center gap-3">
           <button
             onClick={handleTapCapture}
-            className="rounded-full bg-[#FFD93D] px-5 py-3 text-base font-bold text-[#2D1B69] transition-transform active:scale-95"
+            className="action-btn flex items-center gap-1.5 rounded-full bg-accent px-5 py-3 text-base font-bold text-accent-foreground"
           >
-            + ついか
+            <Plus className="size-4" />
+            ついか
           </button>
           {hasExifDates && (
             <button
               onClick={handleSortByDate}
-              className="rounded-full bg-[#A78BFA] px-5 py-3 text-base font-bold text-white transition-transform active:scale-95"
+              className="action-btn flex items-center gap-1.5 rounded-full bg-secondary px-5 py-3 text-base font-bold text-white"
             >
+              <CalendarArrowUp className="size-4" />
               さつえい日じゅん
             </button>
           )}
           <button
             onClick={handleReset}
-            className="rounded-full bg-gray-200 px-5 py-3 text-base font-bold text-gray-700 transition-transform active:scale-95"
+            className="action-btn flex items-center gap-1.5 rounded-full bg-muted px-5 py-3 text-base font-bold text-muted-foreground"
           >
+            <Undo2 className="size-4" />
             やりなおす
-          </button>
-          <button
-            onClick={handleUsePhotos}
-            className="rounded-full bg-[#4ECDC4] px-5 py-3 text-base font-bold text-white shadow-md transition-transform active:scale-95"
-          >
-            よみとる
           </button>
         </div>
 
-        {/* 画像拡大モーダル */}
-        {viewingImage && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={handleCloseViewer}
+        {/* 画像拡大モーダル（Dialog） */}
+        <Dialog
+          open={viewingImage !== null}
+          onOpenChange={(open) => {
+            if (!open) setViewingImage(null);
+          }}
+        >
+          <DialogContent
+            className="max-w-[90vw] border-none bg-transparent p-0 ring-0 shadow-none sm:max-w-[90vw]"
+            showCloseButton={false}
           >
-            <button
-              className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xl font-bold text-gray-800 shadow-lg"
-              onClick={handleCloseViewer}
-            >
-              ✕
-            </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={viewingImage}
-              alt="拡大プレビュー"
-              className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
+            <DialogTitle className="sr-only">拡大プレビュー</DialogTitle>
+            <div className="relative flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {viewingImage && (
+                <img
+                  src={viewingImage}
+                  alt="拡大プレビュー"
+                  className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl"
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -292,7 +301,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   // 撮影ボタン＋ドラッグ＆ドロップエリア
   return (
     <div
-      className={`flex flex-col items-center gap-4 rounded-2xl border-3 border-dashed p-6 transition-colors ${isDragging ? "border-[#4ECDC4] bg-[#4ECDC4]/10" : "border-gray-300"}`}
+      className={`flex flex-col items-center gap-4 rounded-2xl border-3 border-dashed p-6 transition-colors ${isDragging ? "border-secondary bg-secondary/10" : "border-border"}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -300,12 +309,12 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
       {fileInput}
       <button
         onClick={handleTapCapture}
-        className="flex h-40 w-40 flex-col items-center justify-center rounded-full bg-[#FF6B6B] text-white shadow-lg transition-transform active:scale-95"
+        className="capture-btn flex h-40 w-40 flex-col items-center justify-center rounded-full text-white"
       >
-        <span className="text-5xl">📸</span>
+        <Camera className="size-12" />
         <span className="mt-1 text-sm font-bold">ページをさつえい</span>
       </button>
-      <p className="text-center text-sm text-[#6B5B95]">
+      <p className="text-center text-sm text-muted-foreground">
         ボタンをおすか、ここに画像をドラッグ＆ドロップ
         <br />
         <span className="text-xs">（まとめてえらべるよ）</span>

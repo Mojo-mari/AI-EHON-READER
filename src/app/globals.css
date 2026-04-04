@@ -49,72 +49,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* えいご絵本リーダー みてね風 クリーン＆ブライトテーマ */
+  --background: #FFFFFF;
+  --foreground: #2D2D2D;
+  --card: #FFFFFF;
+  --card-foreground: #2D2D2D;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D2D2D;
+  --primary: #FF7EA8;
+  --primary-foreground: #ffffff;
+  --secondary: #74C9B8;
+  --secondary-foreground: #ffffff;
+  --muted: #F8F8F8;
+  --muted-foreground: #9AA0A6;
+  --accent: #FFB3CB;
+  --accent-foreground: #2D2D2D;
+  --destructive: #F05C5C;
+  --border: #F0F0F0;
+  --input: #F0F0F0;
+  --ring: #FF7EA8;
+  --chart-1: #FF7EA8;
+  --chart-2: #74C9B8;
+  --chart-3: #FFB3CB;
+  --chart-4: #9AA0A6;
+  --chart-5: #74C9B8;
+  --radius: 1rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2D2D2D;
+  --sidebar-primary: #FF7EA8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #FFB3CB;
+  --sidebar-accent-foreground: #2D2D2D;
+  --sidebar-border: #F0F0F0;
+  --sidebar-ring: #FF7EA8;
 }
 
 @layer base {
@@ -123,8 +90,228 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: Arial, Helvetica, sans-serif;
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ============================
+   えいご絵本リーダー カスタムスタイル
+   ============================ */
+
+/* ステップカード: 左ボーダー + ホバーで浮き上がるエフェクト */
+.step-card {
+  border-left: 4px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.step-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+.step-card-1 { border-left-color: var(--primary); }
+.step-card-2 { border-left-color: var(--secondary); }
+.step-card-3 { border-left-color: var(--accent); }
+
+/* CTAボタン: 単色 + やわらかいシャドウ */
+.btn-cta {
+  background: var(--primary);
+  box-shadow: 0 4px 16px rgba(255, 126, 168, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-cta:hover {
+  transform: translateY(-2px);
+  filter: brightness(0.97);
+  box-shadow: 0 6px 22px rgba(255, 126, 168, 0.45);
+}
+.btn-cta:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* セカンダリボタン（つぎのページ）: 単色 */
+.btn-secondary-gradient {
+  background: var(--secondary);
+  box-shadow: 0 4px 14px rgba(116, 201, 184, 0.30);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-secondary-gradient:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
+  box-shadow: 0 6px 20px rgba(116, 201, 184, 0.40);
+}
+
+/* 撮影ボタン: 単色 + やわらかいシャドウ */
+.capture-btn {
+  background: var(--primary);
+  box-shadow: 0 8px 24px rgba(255, 126, 168, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.capture-btn:hover {
+  transform: scale(1.05);
+  filter: brightness(0.97);
+  box-shadow: 0 12px 32px rgba(255, 126, 168, 0.45);
+}
+.capture-btn:active {
+  transform: scale(0.97);
+}
+
+/* 再生ボタン: 単色 + やわらかいシャドウ */
+.play-btn {
+  background: var(--primary);
+  box-shadow: 0 6px 20px rgba(255, 126, 168, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.play-btn:hover {
+  filter: brightness(0.97);
+  box-shadow: 0 8px 28px rgba(255, 126, 168, 0.45);
+}
+.play-btn:active {
+  transform: scale(0.93);
+}
+
+/* コントロールボタン（前へ/リプレイ/次へ）: ホバーで浮き上がる */
+.control-btn {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.control-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.09);
+  background: var(--muted);
+}
+.control-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* アクションボタン群（ついか/やりなおす/よみとる）: 統一ホバーエフェクト */
+.action-btn {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.09);
+}
+.action-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* カード: やわらかいシャドウ */
+.soft-card {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease;
+}
+
+/* スピード選択のアクティブ状態 */
+.speed-active {
+  background: var(--accent);
+  color: var(--foreground);
+  box-shadow: 0 2px 10px rgba(255, 179, 203, 0.40);
+}
+
+/* Progress バーのアニメーション */
+.progress-bar-animated {
+  background: linear-gradient(90deg, var(--secondary), #9ED9CE, var(--secondary));
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Badge: やわらかいグロー */
+.page-badge {
+  background: rgba(255, 179, 203, 0.20);
+  border: 1.5px solid rgba(255, 126, 168, 0.30);
+  backdrop-filter: blur(4px);
+}
+
+/* ヘッダー: 下線グラデーション（2色で落ち着いた印象） */
+.header-gradient-border {
+  border-bottom: 1px solid var(--border);
+}
+
+/* ============================
+   単語タップ機能
+   ============================ */
+
+/* タップ可能な単語: 点線の下線でヒント */
+.tappable-word {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(255, 126, 168, 0.4);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  border-radius: 2px;
+  transition: background 0.15s ease, text-decoration-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tappable-word:hover {
+  background: rgba(255, 126, 168, 0.08);
+  text-decoration-color: rgba(255, 126, 168, 0.7);
+}
+.tappable-word:active {
+  background: rgba(255, 126, 168, 0.15);
+}
+
+/* タップ中（アクティブ状態）の単語 */
+.tappable-word-active {
+  background: rgba(255, 126, 168, 0.15);
+  text-decoration-color: var(--primary);
+  text-decoration-style: solid;
+}
+
+/* 単語の意味バー（英文カードの下部に表示） */
+.word-meaning-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #FFFFFF;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
+  animation: meaningBarFadeIn 0.15s ease-out;
+}
+
+.word-meaning-word {
+  font-weight: 800;
+  color: var(--primary);
+  font-size: 1.05rem;
+}
+
+.word-meaning-arrow {
+  opacity: 0.5;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+
+.word-meaning-japanese {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--foreground);
+}
+
+.word-meaning-loading {
+  opacity: 0.5;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+@keyframes meaningBarFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

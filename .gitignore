@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 作業用フォルダ（GitHubには上げない）
+イメージ共有/
+状況報告/

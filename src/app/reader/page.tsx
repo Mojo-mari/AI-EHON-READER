@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import CameraCapture from "@/components/CameraCapture";
 import TextDisplay from "@/components/TextDisplay";
 import AudioPlayer from "@/components/AudioPlayer";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { BookOpen, Search, Frown, Camera, BookMarked, Check } from "lucide-react";
+import { getBook, saveBook } from "@/lib/bookshelf";
+import { saveBookToCloud } from "@/lib/bookshelf-cloud";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Speed = "slow" | "normal" | "fast";
 
@@ -19,14 +26,43 @@ type ReaderState =
   | { step: "result"; pages: PageResult[]; currentPage: number }
   | { step: "error"; message: string };
 
-export default function ReaderPage() {
+function ReaderPageContent() {
+  const searchParams = useSearchParams();
+  const { user, supabase } = useAuth();
   const [state, setState] = useState<ReaderState>({ step: "capture" });
   const [speed, setSpeed] = useState<Speed>("normal");
   const [isTranslating, setIsTranslating] = useState(false);
 
+  // 保存UI用のstate
+  const [isSaved, setIsSaved] = useState(false);
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [bookTitle, setBookTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // URLにbookIdがある場合、localStorageから読み込む
+  useEffect(() => {
+    const bookId = searchParams.get("bookId");
+    if (!bookId) return;
+    const book = getBook(bookId);
+    if (book) {
+      setState({ step: "result", pages: book.pages, currentPage: 0 });
+      setIsSaved(true);
+    }
+  }, [searchParams]);
+
+  // 保存フォームを開いたらinputにフォーカス
+  useEffect(() => {
+    if (showSaveForm) {
+      titleInputRef.current?.focus();
+    }
+  }, [showSaveForm]);
+
   const handleCapture = useCallback(async (imageDataUrls: string[]) => {
     const totalPages = imageDataUrls.length;
     setState({ step: "processing", doneCount: 0, totalPages });
+    setIsSaved(false);
+    setShowSaveForm(false);
+    setBookTitle("");
 
     const results = await Promise.allSettled(
       imageDataUrls.map(async (url, index) => {
@@ -57,7 +93,6 @@ export default function ReaderPage() {
       })
     );
 
-    // 成功したページだけ集める（元の順序を維持）
     const successPages = results
       .filter(
         (r): r is PromiseFulfilledResult<{ index: number; english: string; japanese: string }> =>
@@ -102,10 +137,12 @@ export default function ReaderPage() {
 
   const handleBackToCapture = useCallback(() => {
     setState({ step: "capture" });
+    setIsSaved(false);
+    setShowSaveForm(false);
+    setBookTitle("");
   }, []);
 
   const handleTextEdit = useCallback(async (newText: string) => {
-    // まず英文をすぐに反映
     let editedPageIndex = 0;
     setState((prev) => {
       if (prev.step === "result") {
@@ -120,7 +157,6 @@ export default function ReaderPage() {
       return prev;
     });
 
-    // 日本語訳を再取得
     setIsTranslating(true);
     try {
       const res = await fetch("/api/translate", {
@@ -149,16 +185,30 @@ export default function ReaderPage() {
     }
   }, []);
 
+  const handleSave = useCallback(async () => {
+    if (!bookTitle.trim() || state.step !== "result") return;
+    const savedBook = saveBook(bookTitle.trim(), state.pages);
+    setIsSaved(true);
+    setShowSaveForm(false);
+    setBookTitle("");
+
+    // ログイン中はクラウドにも保存
+    if (user) {
+      await saveBookToCloud(supabase, user.id, savedBook);
+    }
+  }, [bookTitle, state, user, supabase]);
+
   return (
-    <div className="flex min-h-dvh flex-col bg-[#FFF8F0]">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Header />
 
       <main className="flex flex-1 flex-col items-center px-4 py-6">
         {/* ページカウンター */}
         {state.step === "result" && (
-          <div className="mb-4 rounded-full bg-[#FFD93D]/30 px-4 py-1 text-sm font-bold text-[#2D1B69]">
-            📖 {state.currentPage + 1} / {state.pages.length} ページめ
-          </div>
+          <span className="page-badge mb-4 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-bold text-foreground">
+            <BookOpen className="size-4" />
+            {state.currentPage + 1} / {state.pages.length} ページめ
+          </span>
         )}
 
         {/* 撮影画面 */}
@@ -171,21 +221,16 @@ export default function ReaderPage() {
         {/* 読み取り中（進捗表示） */}
         {state.step === "processing" && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
-            <div className="text-6xl animate-bounce">🔍</div>
-            <p className="text-center text-lg font-bold text-[#2D1B69]">
+            <Search className="size-14 animate-bounce text-secondary" />
+            <p className="text-center text-lg font-bold text-foreground">
               もじをよみとっているよ...
             </p>
-            {/* 進捗バー */}
             <div className="w-48">
-              <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full rounded-full bg-[#4ECDC4] transition-all duration-300"
-                  style={{
-                    width: `${state.totalPages > 0 ? (state.doneCount / state.totalPages) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-2 text-center text-sm font-bold text-[#6B5B95]">
+              <Progress
+                value={state.totalPages > 0 ? (state.doneCount / state.totalPages) * 100 : 0}
+                className="[&_[data-slot=progress-track]]:h-3 [&_[data-slot=progress-track]]:rounded-full [&_[data-slot=progress-indicator]]:progress-bar-animated [&_[data-slot=progress-indicator]]:rounded-full"
+              />
+              <p className="mt-2 text-center text-sm font-bold text-muted-foreground">
                 {state.doneCount}/{state.totalPages}ページ よみとりずみ
               </p>
             </div>
@@ -213,25 +258,84 @@ export default function ReaderPage() {
               onNextPage={handleNextResultPage}
               onFinish={handleBackToCapture}
             />
+
+            {/* 本棚に保存 */}
+            <div className="w-full max-w-sm pb-4">
+              {isSaved ? (
+                <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted px-4 py-3 text-sm font-bold text-muted-foreground">
+                  <Check className="size-4 text-secondary" />
+                  ほんだなに保存済み
+                </div>
+              ) : showSaveForm ? (
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <p className="mb-2 text-sm font-bold text-foreground">
+                    本のタイトルを入力してね
+                  </p>
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={bookTitle}
+                    onChange={(e) => setBookTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                    placeholder="例：はらぺこあおむし"
+                    className="mb-3 w-full rounded-xl border border-border bg-muted px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={!bookTitle.trim()}
+                      className="btn-cta flex-1 rounded-xl border-none text-sm"
+                    >
+                      保存する
+                    </Button>
+                    <Button
+                      onClick={() => setShowSaveForm(false)}
+                      variant="outline"
+                      className="rounded-xl text-sm"
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowSaveForm(true)}
+                  className="action-btn flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-foreground"
+                >
+                  <BookMarked className="size-4 text-primary" />
+                  ほんだなに保存する
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* エラー画面 */}
         {state.step === "error" && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4">
-            <div className="text-6xl">😢</div>
-            <p className="whitespace-pre-line text-center text-lg font-bold text-[#2D1B69]">
+            <Frown className="size-14 text-muted-foreground" />
+            <p className="whitespace-pre-line text-center text-lg font-bold text-foreground">
               {state.message}
             </p>
-            <button
+            <Button
               onClick={handleBackToCapture}
-              className="rounded-full bg-[#FF6B6B] px-8 py-3 text-lg font-bold text-white shadow-md transition-transform active:scale-95"
+              size="xl"
+              className="btn-cta rounded-full border-none px-8"
             >
-              📸 もういちどとる
-            </button>
+              <Camera className="size-5" />
+              もういちどとる
+            </Button>
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+export default function ReaderPage() {
+  return (
+    <Suspense>
+      <ReaderPageContent />
+    </Suspense>
   );
 }

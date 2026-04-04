@@ -1,13 +1,24 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import {
+  SkipBack,
+  SkipForward,
+  RotateCcw,
+  Play,
+  Pause,
+  Loader2,
+  Camera,
+  BookOpen,
+  Music,
+} from "lucide-react";
 
 type Speed = "slow" | "normal" | "fast";
 
-const speedConfig: Record<Speed, { label: string; icon: string; value: number }> = {
-  slow: { label: "ゆっくり", icon: "🐢", value: 0.8 },
-  normal: { label: "ふつう", icon: "🐰", value: 1.0 },
-  fast: { label: "はやい", icon: "🐎", value: 1.2 },
+const speedConfig: Record<Speed, { label: string; value: number }> = {
+  slow: { label: "ゆっくり", value: 0.7 },
+  normal: { label: "ふつう", value: 1.0 },
+  fast: { label: "はやい", value: 1.3 },
 };
 
 type AudioPlayerProps = {
@@ -48,6 +59,20 @@ export default function AudioPlayer({
       }
     };
   }, [audioUrl]);
+
+  // スピード変更時: キャッシュ済み音声をクリアして新しいスピードで再生成できるようにする
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setAudioUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setIsPlaying(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speed]);
 
   const generateAudio = useCallback(async () => {
     if (!text) return;
@@ -141,11 +166,11 @@ export default function AudioPlayer({
             onClick={() => onSpeedChange(key)}
             className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
               speed === key
-                ? "bg-[#FFD93D] text-[#2D1B69] shadow-md"
-                : "bg-white text-[#6B5B95] shadow-sm"
+                ? "speed-active"
+                : "action-btn bg-card text-muted-foreground shadow-sm"
             }`}
           >
-            {speedConfig[key].icon} {speedConfig[key].label}
+            {speedConfig[key].label}
           </button>
         ))}
       </div>
@@ -155,41 +180,41 @@ export default function AudioPlayer({
         <button
           onClick={onPrevPage}
           disabled={isFirstPage}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm transition-transform active:scale-95 disabled:opacity-30"
+          className="control-btn flex h-12 w-12 items-center justify-center rounded-full disabled:opacity-30"
           title="まえのページ"
         >
-          ⏮️
+          <SkipBack className="size-5" />
         </button>
 
         <button
           onClick={handleReplay}
           disabled={isLoading}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm transition-transform active:scale-95 disabled:opacity-50"
+          className="control-btn flex h-12 w-12 items-center justify-center rounded-full disabled:opacity-50"
           title="もういちど"
         >
-          🔄
+          <RotateCcw className="size-5" />
         </button>
 
         <button
           onClick={handlePlayPause}
           disabled={isLoading}
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FF6B6B] text-3xl text-white shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+          className="play-btn flex h-16 w-16 items-center justify-center rounded-full text-white disabled:opacity-50"
         >
           {isLoading ? (
-            <span className="animate-spin text-2xl">⏳</span>
+            <Loader2 className="size-7 animate-spin" />
           ) : isPlaying ? (
-            "⏸️"
+            <Pause className="size-7" />
           ) : (
-            "▶️"
+            <Play className="size-7" />
           )}
         </button>
 
         <button
           onClick={handleSkipForward}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm transition-transform active:scale-95"
+          className="control-btn flex h-12 w-12 items-center justify-center rounded-full"
           title={isLastPage ? "おわり" : "つぎのページ"}
         >
-          ⏭️
+          <SkipForward className="size-5" />
         </button>
       </div>
 
@@ -197,28 +222,31 @@ export default function AudioPlayer({
       {isLastPage ? (
         <button
           onClick={onFinish}
-          className="w-full rounded-2xl bg-[#FF6B6B] py-4 text-lg font-bold text-white shadow-md transition-transform active:scale-95"
+          className="btn-cta flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white"
         >
-          📸 あたらしくさつえいする
+          <Camera className="size-5" />
+          あたらしくさつえいする
         </button>
       ) : (
         <button
           onClick={onNextPage}
-          className="w-full rounded-2xl bg-[#4ECDC4] py-4 text-lg font-bold text-white shadow-md transition-transform active:scale-95"
+          className="btn-secondary-gradient flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white"
         >
-          📖 つぎのページへ ({currentPage + 2}/{totalPages})
+          <BookOpen className="size-5" />
+          つぎのページへ ({currentPage + 2}/{totalPages})
         </button>
       )}
 
       {/* エラー表示 */}
       {error && (
-        <p className="text-center text-sm text-red-500">{error}</p>
+        <p className="text-center text-sm text-destructive">{error}</p>
       )}
 
       {/* ローディング表示 */}
       {isLoading && (
-        <p className="text-center text-sm text-[#6B5B95]">
-          🎵 おんせいをつくっているよ...
+        <p className="flex items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
+          <Music className="size-4" />
+          おんせいをつくっているよ...
         </p>
       )}
     </div>

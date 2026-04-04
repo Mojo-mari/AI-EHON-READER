@@ -41,7 +41,7 @@ export default function SortablePreviewItem({
         {...listeners}
         onClick={() => onTap(id)}
         className={`overflow-hidden rounded-xl border-3 shadow-md touch-none cursor-pointer ${
-          isDragging ? "border-[#4ECDC4]" : "border-[#FFD93D]"
+          isDragging ? "border-secondary" : "border-accent"
         }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -54,7 +54,7 @@ export default function SortablePreviewItem({
       </div>
       <button
         onClick={() => onRemove(id)}
-        className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B6B] text-xs font-bold text-white shadow"
+        className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-white shadow"
       >
         ✕
       </button>
