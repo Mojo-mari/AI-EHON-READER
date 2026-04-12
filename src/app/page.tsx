@@ -3,10 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Camera, Search, Volume2 } from "lucide-react";
 import BookshelfSection from "@/components/BookshelfSection";
+import Header from "@/components/Header";
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
+    <div className="flex min-h-dvh flex-col">
+      <Header />
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
       {/* タイトルエリア */}
       <div className="mb-8 text-center">
         <div className="mb-4 flex justify-center">
@@ -26,41 +29,47 @@ export default function Home() {
 
       {/* 使い方の説明 */}
       <div className="mb-10 w-full max-w-sm space-y-4">
-        <Card className="step-card step-card-1 rounded-2xl ring-0 shadow-sm">
-          <CardContent className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Camera className="size-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-bold text-foreground">① えほんをとる</p>
-              <p className="text-sm text-muted-foreground">カメラでページをパシャ！</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="step-card step-card-2 rounded-2xl ring-0 shadow-sm">
-          <CardContent className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary/10">
-              <Search className="size-6 text-secondary" />
-            </div>
-            <div>
-              <p className="font-bold text-foreground">② もじをよみとる</p>
-              <p className="text-sm text-muted-foreground">AIがえいごの文をみつけるよ</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="step-card step-card-3 rounded-2xl ring-0 shadow-sm">
-          <CardContent className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20">
-              <Volume2 className="size-6 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="font-bold text-foreground">③ よみあげる</p>
-              <p className="text-sm text-muted-foreground">
-                きれいなえいごでよんでくれる！
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/reader" className="block">
+          <Card className="step-card step-card-1 rounded-2xl ring-0 shadow-sm transition-transform active:scale-95">
+            <CardContent className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Camera className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">① えほんをとる</p>
+                <p className="text-sm text-muted-foreground">カメラでページをパシャ！</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/reader" className="block">
+          <Card className="step-card step-card-2 rounded-2xl ring-0 shadow-sm transition-transform active:scale-95">
+            <CardContent className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary/10">
+                <Search className="size-6 text-secondary" />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">② もじをよみとる</p>
+                <p className="text-sm text-muted-foreground">AIがえいごの文をみつけるよ</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/reader" className="block">
+          <Card className="step-card step-card-3 rounded-2xl ring-0 shadow-sm transition-transform active:scale-95">
+            <CardContent className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20">
+                <Volume2 className="size-6 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">③ よみあげる</p>
+                <p className="text-sm text-muted-foreground">
+                  きれいなえいごでよんでくれる！
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* ほんだな */}
@@ -98,6 +107,7 @@ export default function Home() {
           </a>
         </div>
       </div>
+    </div>
     </div>
   );
 }

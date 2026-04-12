@@ -8,7 +8,7 @@ import TextDisplay from "@/components/TextDisplay";
 import AudioPlayer from "@/components/AudioPlayer";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Search, Frown, Camera, BookMarked, Check } from "lucide-react";
+import { BookOpen, Search, Frown, Camera, BookMarked, Check, LogIn } from "lucide-react";
 import { getBook, saveBook } from "@/lib/bookshelf";
 import { saveBookToCloud } from "@/lib/bookshelf-cloud";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +28,7 @@ type ReaderState =
 
 function ReaderPageContent() {
   const searchParams = useSearchParams();
-  const { user, supabase } = useAuth();
+  const { user, supabase, signInWithGoogle } = useAuth();
   const [state, setState] = useState<ReaderState>({ step: "capture" });
   const [speed, setSpeed] = useState<Speed>("normal");
   const [isTranslating, setIsTranslating] = useState(false);
@@ -37,6 +37,7 @@ function ReaderPageContent() {
   const [isSaved, setIsSaved] = useState(false);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [bookTitle, setBookTitle] = useState("");
+  const [bookColor, setBookColor] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // URLにbookIdがある場合、localStorageから読み込む
@@ -89,20 +90,26 @@ function ReaderPageContent() {
           index,
           english: data.english || "",
           japanese: data.japanese || "",
+          title: data.title || "",
         };
       })
     );
 
-    const successPages = results
-      .filter(
-        (r): r is PromiseFulfilledResult<{ index: number; english: string; japanese: string }> =>
-          r.status === "fulfilled" && r.value.english !== ""
-      )
+    type PageData = { index: number; english: string; japanese: string; title: string };
+    const allFulfilled = results
+      .filter((r): r is PromiseFulfilledResult<PageData> => r.status === "fulfilled")
       .map((r) => r.value)
-      .sort((a, b) => a.index - b.index)
-      .map(({ english, japanese }) => ({ english, japanese }));
+      .sort((a, b) => a.index - b.index);
 
-    if (successPages.length === 0) {
+    // 表紙など本文のないページも含めてタイトル・カラーを探す
+    const detectedTitle = allFulfilled.find((r) => r.title)?.title ?? "";
+    if (detectedTitle) setBookTitle(detectedTitle);
+    const detectedColor = allFulfilled.find((r) => r.color)?.color ?? "";
+    if (detectedColor) setBookColor(detectedColor);
+
+    const successResults = allFulfilled.filter((r) => r.english !== "");
+
+    if (successResults.length === 0) {
       setState({
         step: "error",
         message: "えいごの文がみつかりませんでした。\nもういちど撮影してみてね。",
@@ -112,7 +119,7 @@ function ReaderPageContent() {
 
     setState({
       step: "result",
-      pages: successPages,
+      pages: successResults.map(({ english, japanese }) => ({ english, japanese })),
       currentPage: 0,
     });
   }, []);
@@ -140,6 +147,7 @@ function ReaderPageContent() {
     setIsSaved(false);
     setShowSaveForm(false);
     setBookTitle("");
+    setBookColor("");
   }, []);
 
   const handleTextEdit = useCallback(async (newText: string) => {
@@ -186,17 +194,14 @@ function ReaderPageContent() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!bookTitle.trim() || state.step !== "result") return;
-    const savedBook = saveBook(bookTitle.trim(), state.pages);
+    if (!bookTitle.trim() || state.step !== "result" || !user) return;
+    const savedBook = saveBook(bookTitle.trim(), state.pages, bookColor || undefined);
+    await saveBookToCloud(supabase, user.id, savedBook);
     setIsSaved(true);
     setShowSaveForm(false);
     setBookTitle("");
-
-    // ログイン中はクラウドにも保存
-    if (user) {
-      await saveBookToCloud(supabase, user.id, savedBook);
-    }
-  }, [bookTitle, state, user, supabase]);
+    setBookColor("");
+  }, [bookTitle, bookColor, state, user, supabase]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -261,7 +266,15 @@ function ReaderPageContent() {
 
             {/* 本棚に保存 */}
             <div className="w-full max-w-sm pb-4">
-              {isSaved ? (
+              {!user ? (
+                <button
+                  onClick={signInWithGoogle}
+                  className="action-btn flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-foreground"
+                >
+                  <LogIn className="size-4 text-primary" />
+                  ログインするとほんだなに保存できるよ
+                </button>
+              ) : isSaved ? (
                 <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted px-4 py-3 text-sm font-bold text-muted-foreground">
                   <Check className="size-4 text-secondary" />
                   ほんだなに保存済み

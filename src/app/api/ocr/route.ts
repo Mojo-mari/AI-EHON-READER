@@ -31,24 +31,33 @@ export async function POST(request: NextRequest) {
           role: "system",
           content: `You are an OCR assistant specialized in reading children's picture books.
 
-Your task is to extract ONLY the **main story text** (narrative/body text) from picture book pages.
+Your task is to extract the **main story text** (narrative/body text) from picture book pages, and also detect the book title if visible.
 
-IMPORTANT - DO NOT extract:
+IMPORTANT - For "english" and "japanese" fields, DO NOT extract:
 - Text that appears INSIDE illustrations (e.g. signs, labels, banners, posters, shop names, letters within the art)
 - Decorative or stylistic text that is part of the artwork
 - Page numbers, titles, or headers
 
-ONLY extract:
+ONLY extract for "english"/"japanese":
 - The story/narrative text, usually printed in a consistent font in a text area (often at the top, bottom, or side of the page, separate from the illustration)
 
-If there are multiple images, combine the text in order.
+For "title":
+- If the image appears to be a book cover (shows a prominent book title), extract the book title exactly as written
+- Otherwise return ""
+
+For "color":
+- Based on the book's overall mood, illustration style, or theme, pick ONE color name that best represents this book
+- Choose from ONLY these options: rose, orange, amber, yellow, lime, emerald, teal, sky, blue, violet, purple, pink
+- Return "" if you cannot determine a suitable color
+
+If there are multiple images, combine the story text in order.
 Also provide a natural Japanese translation suitable for children.
 
 Respond in this exact JSON format:
-{"english": "the extracted story text", "japanese": "日本語訳"}
+{"english": "the extracted story text", "japanese": "日本語訳", "title": "Book Title or empty string", "color": "color name or empty string"}
 
 If there is no story text visible in the images, respond with:
-{"english": "", "japanese": ""}`,
+{"english": "", "japanese": "", "title": "", "color": ""}`,
         },
         {
           role: "user",
@@ -78,6 +87,8 @@ If there is no story text visible in the images, respond with:
     return NextResponse.json({
       english: result.english || "",
       japanese: result.japanese || "",
+      title: result.title || "",
+      color: result.color || "",
     });
   } catch (error) {
     console.error("OCR error:", error);

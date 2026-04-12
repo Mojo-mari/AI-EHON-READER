@@ -7,6 +7,7 @@ type CloudBook = {
   title: string;
   pages: { english: string; japanese: string }[];
   saved_at: string;
+  color?: string;
 };
 
 // クラウドから本棚を取得
@@ -25,6 +26,7 @@ export async function fetchCloudBooks(
     title: b.title,
     pages: b.pages,
     savedAt: b.saved_at,
+    color: b.color,
   }));
 }
 
@@ -70,6 +72,7 @@ export async function saveBookToCloud(
     title: book.title,
     pages: book.pages,
     saved_at: book.savedAt,
+    color: book.color,
   });
 }
 

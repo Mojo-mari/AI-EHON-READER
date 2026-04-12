@@ -258,7 +258,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
               className="action-btn flex items-center gap-1.5 rounded-full bg-secondary px-5 py-3 text-base font-bold text-white"
             >
               <CalendarArrowUp className="size-4" />
-              さつえい日じゅん
+              さつえい時間じゅん
             </button>
           )}
           <button

@@ -3,6 +3,7 @@ export type SavedBook = {
   title: string;
   pages: { english: string; japanese: string }[];
   savedAt: string; // ISO 8601
+  color?: string; // テーマカラー（Tailwindカラー名）
 };
 
 const STORAGE_KEY = "bookshelf";
@@ -23,7 +24,8 @@ export function getBook(id: string): SavedBook | undefined {
 
 export function saveBook(
   title: string,
-  pages: { english: string; japanese: string }[]
+  pages: { english: string; japanese: string }[],
+  color?: string
 ): SavedBook {
   const books = getBooks();
   const newBook: SavedBook = {
@@ -31,6 +33,7 @@ export function saveBook(
     title,
     pages,
     savedAt: new Date().toISOString(),
+    color,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify([newBook, ...books]));
   return newBook;
