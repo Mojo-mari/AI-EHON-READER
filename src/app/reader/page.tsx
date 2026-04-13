@@ -91,11 +91,12 @@ function ReaderPageContent() {
           english: data.english || "",
           japanese: data.japanese || "",
           title: data.title || "",
+          color: data.color || "",
         };
       })
     );
 
-    type PageData = { index: number; english: string; japanese: string; title: string };
+    type PageData = { index: number; english: string; japanese: string; title: string; color: string };
     const allFulfilled = results
       .filter((r): r is PromiseFulfilledResult<PageData> => r.status === "fulfilled")
       .map((r) => r.value)
