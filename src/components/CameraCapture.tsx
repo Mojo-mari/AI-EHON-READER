@@ -17,7 +17,14 @@ import {
 } from "@dnd-kit/sortable";
 import exifr from "exifr";
 import SortablePreviewItem from "./SortablePreviewItem";
-import { Camera, Plus, CalendarArrowUp, Undo2, ScanText } from "lucide-react";
+import {
+  Camera,
+  Plus,
+  CalendarArrowUp,
+  Undo2,
+  ScanText,
+  Loader2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -90,7 +97,11 @@ function fileToCompressedDataUrl(file: File): Promise<string> {
           return;
         }
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+        const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        // iOS Safariはcanvasのメモリ解放が遅いため明示的に縮小して解放を促す
+        canvas.width = 0;
+        canvas.height = 0;
+        resolve(dataUrl);
       } catch {
         resolve(fileToDataUrl(file));
       }
@@ -105,44 +116,54 @@ function fileToCompressedDataUrl(file: File): Promise<string> {
   });
 }
 
-async function filesToPreviewItems(
-  files: FileList | File[]
-): Promise<PreviewItem[]> {
-  const fileArray = Array.from(files).filter((f) =>
-    f.type.startsWith("image/")
-  );
-  return Promise.all(
-    fileArray.map(async (file) => {
-      const [dataUrl, capturedAt] = await Promise.all([
-        fileToCompressedDataUrl(file),
-        readExifDate(file),
-      ]);
-      return { id: generateId(), dataUrl, capturedAt };
-    })
-  );
-}
-
 export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<PreviewItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  // 写真の読み込み進捗（null = 読み込み中でない）
+  const [loadProgress, setLoadProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
-  // dnd-kit センサー設定: スマホでは長押し200msでドラッグ開始（横スクロールと区別）
+  // dnd-kit センサー設定: スマホでは長押し350msでドラッグ開始。
+  // すぐ指を動かした場合（tolerance超過）はドラッグせず横スクロールに譲る
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 8 },
   });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 200, tolerance: 5 },
+    activationConstraint: { delay: 350, tolerance: 8 },
   });
   const sensors = useSensors(pointerSensor, touchSensor);
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    filesToPreviewItems(files).then((items) => {
-      if (items.length > 0) {
-        setPreviews((prev) => [...prev, ...items]);
+  const addFiles = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter((f) =>
+      f.type.startsWith("image/")
+    );
+    if (fileArray.length === 0) return;
+
+    // スマホで複数枚を同時にデコードするとメモリ不足で固まるため、
+    // 1枚ずつ順番に処理し、できた写真から順次プレビューに追加する
+    setLoadProgress({ done: 0, total: fileArray.length });
+    for (const file of fileArray) {
+      try {
+        const [dataUrl, capturedAt] = await Promise.all([
+          fileToCompressedDataUrl(file),
+          readExifDate(file),
+        ]);
+        setPreviews((prev) => [
+          ...prev,
+          { id: generateId(), dataUrl, capturedAt },
+        ]);
+      } catch {
+        // 読み込めなかった写真はスキップして続行
       }
-    });
+      setLoadProgress((prev) =>
+        prev ? { ...prev, done: prev.done + 1 } : prev
+      );
+    }
+    setLoadProgress(null);
   }, []);
 
   const handleFileChange = useCallback(
@@ -242,6 +263,14 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
     />
   );
 
+  // 写真読み込み中の進捗表示
+  const loadingBanner = loadProgress && (
+    <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" />
+      しゃしんをよみこんでいるよ… {loadProgress.done}/{loadProgress.total}
+    </p>
+  );
+
   // プレビュー表示中
   if (previews.length > 0) {
     return (
@@ -278,12 +307,14 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
             </div>
           </SortableContext>
         </DndContext>
+        {loadingBanner}
         <p className="text-xs text-muted-foreground">
           長おしでドラッグして順番をかえられるよ
         </p>
         <button
           onClick={handleUsePhotos}
-          className="btn-secondary-gradient flex w-full max-w-xs items-center justify-center gap-2 rounded-full px-6 py-4 text-lg font-bold text-white"
+          disabled={loadProgress !== null}
+          className="btn-secondary-gradient flex w-full max-w-xs items-center justify-center gap-2 rounded-full px-6 py-4 text-lg font-bold text-white disabled:opacity-50"
         >
           <ScanText className="size-5" />
           よみとる
@@ -359,6 +390,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
         <Camera className="size-12" />
         <span className="mt-1 text-sm font-bold">ページをさつえい</span>
       </button>
+      {loadingBanner}
       <p className="text-center text-sm text-muted-foreground">
         ボタンをおすか、ここに画像をドラッグ＆ドロップ
         <br />

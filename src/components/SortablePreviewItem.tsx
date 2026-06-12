@@ -40,7 +40,7 @@ export default function SortablePreviewItem({
         {...attributes}
         {...listeners}
         onClick={() => onTap(id)}
-        className={`overflow-hidden rounded-xl border-3 shadow-md touch-none cursor-pointer ${
+        className={`overflow-hidden rounded-xl border-3 shadow-md touch-manipulation cursor-pointer ${
           isDragging ? "border-secondary" : "border-accent"
         }`}
       >

@@ -30,3 +30,18 @@ test("画像を追加するとプレビューと「よみとる」が出る", as
   await expect(page.getByText("1まいのしゃしん")).toBeVisible();
   await expect(page.getByText("よみとる")).toBeVisible();
 });
+
+test("複数枚の画像を一度に追加できる", async ({ page }) => {
+  await page.goto("/reader");
+  const buf = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  await page.setInputFiles('input[type="file"]', [
+    { name: "a.png", mimeType: "image/png", buffer: buf },
+    { name: "b.png", mimeType: "image/png", buffer: buf },
+    { name: "c.png", mimeType: "image/png", buffer: buf },
+  ]);
+  await expect(page.getByText("3まいのしゃしん")).toBeVisible();
+  await expect(page.getByAltText("しゃしん 3")).toBeVisible();
+});
