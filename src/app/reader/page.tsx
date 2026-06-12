@@ -12,6 +12,7 @@ import { BookOpen, Search, Frown, Camera, BookMarked, Check, LogIn } from "lucid
 import { getBook, saveBook } from "@/lib/bookshelf";
 import { saveBookToCloud } from "@/lib/bookshelf-cloud";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSettings, saveSettings } from "@/lib/settings";
 
 type Speed = "slow" | "normal" | "fast";
 
@@ -32,6 +33,22 @@ function ReaderPageContent() {
   const [state, setState] = useState<ReaderState>({ step: "capture" });
   const [speed, setSpeed] = useState<Speed>("normal");
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // よみあげ設定（こえ・じどうめくり）。端末に記憶される
+  const [voice, setVoice] = useState(() => getSettings().voice);
+  const [autoTurn, setAutoTurn] = useState(() => getSettings().autoTurn);
+  // 自動めくり直後のページを自動再生するためのフラグ
+  const [autoPlayNext, setAutoPlayNext] = useState(false);
+
+  const handleVoiceChange = useCallback((newVoice: string) => {
+    setVoice(newVoice);
+    saveSettings({ ...getSettings(), voice: newVoice });
+  }, []);
+
+  const handleAutoTurnChange = useCallback((newAutoTurn: boolean) => {
+    setAutoTurn(newAutoTurn);
+    saveSettings({ ...getSettings(), autoTurn: newAutoTurn });
+  }, []);
 
   // 保存UI用のstate
   const [isSaved, setIsSaved] = useState(false);
@@ -154,6 +171,16 @@ function ReaderPageContent() {
       }
       return prev;
     });
+  }, []);
+
+  // じどうめくり: 読み終わったら次のページへ進み、自動で読み始める
+  const handleAutoAdvance = useCallback(() => {
+    setAutoPlayNext(true);
+    handleNextResultPage();
+  }, [handleNextResultPage]);
+
+  const handleAutoPlayConsumed = useCallback(() => {
+    setAutoPlayNext(false);
   }, []);
 
   const handlePrevResultPage = useCallback(() => {
@@ -284,8 +311,16 @@ function ReaderPageContent() {
             <AudioPlayer
               key={`audio-${state.currentPage}`}
               text={state.pages[state.currentPage].english}
+              nextText={state.pages[state.currentPage + 1]?.english}
               speed={speed}
               onSpeedChange={setSpeed}
+              voice={voice}
+              onVoiceChange={handleVoiceChange}
+              autoTurn={autoTurn}
+              onAutoTurnChange={handleAutoTurnChange}
+              autoPlayOnMount={autoPlayNext}
+              onAutoPlayConsumed={handleAutoPlayConsumed}
+              onAutoAdvance={handleAutoAdvance}
               audioCache={audioCacheRef.current}
               currentPage={state.currentPage}
               totalPages={state.pages.length}

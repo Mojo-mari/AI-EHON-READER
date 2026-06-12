@@ -5,9 +5,23 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const ALLOWED_VOICES = new Set([
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+]);
+
 export async function POST(request: NextRequest) {
   try {
-    const { text } = await request.json();
+    const { text, voice } = await request.json();
+    const selectedVoice = ALLOWED_VOICES.has(voice) ? voice : "coral";
 
     if (!text) {
       return NextResponse.json(
@@ -26,7 +40,7 @@ export async function POST(request: NextRequest) {
     // （gpt-4o-mini-tts は speed パラメータ非対応のため）
     const mp3 = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
-      voice: "coral",
+      voice: selectedVoice,
       input: processedText,
       instructions:
         "You are reading an English picture book aloud to young children. " +

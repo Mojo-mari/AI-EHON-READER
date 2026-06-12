@@ -11,7 +11,11 @@ import {
   Camera,
   BookOpen,
   Music,
+  Repeat,
+  AudioLines,
 } from "lucide-react";
+import { fetchTtsUrl } from "@/lib/tts-client";
+import VoicePicker, { VOICES } from "./VoicePicker";
 
 type Speed = "slow" | "normal" | "fast";
 
@@ -23,8 +27,19 @@ const speedConfig: Record<Speed, { label: string; value: number }> = {
 
 type AudioPlayerProps = {
   text: string;
+  /** 次のページの英文（再生中に音声を先読みして、ページ送りを待たせない） */
+  nextText?: string;
   speed: Speed;
   onSpeedChange: (speed: Speed) => void;
+  voice: string;
+  onVoiceChange: (voice: string) => void;
+  autoTurn: boolean;
+  onAutoTurnChange: (autoTurn: boolean) => void;
+  /** 自動めくりで遷移してきた直後にtrue。マウント時に自動再生する */
+  autoPlayOnMount?: boolean;
+  onAutoPlayConsumed?: () => void;
+  /** 読み終わったら次のページへ進んで自動再生する（親が処理） */
+  onAutoAdvance: () => void;
   /** テキスト→音声URLのキャッシュ（親が管理。ページを行き来しても再生成しない） */
   audioCache: Map<string, string>;
   currentPage: number;
@@ -34,10 +49,26 @@ type AudioPlayerProps = {
   onFinish: () => void;
 };
 
+// iOSでは「ユーザー操作で一度再生したaudio要素」だけが続けて自動再生を許可される。
+// 自動ページめくり後も再生できるよう、audio要素を1つだけ作って使い回す。
+let sharedAudio: HTMLAudioElement | null = null;
+function getSharedAudio(): HTMLAudioElement {
+  if (!sharedAudio) sharedAudio = new Audio();
+  return sharedAudio;
+}
+
 export default function AudioPlayer({
   text,
+  nextText,
   speed,
   onSpeedChange,
+  voice,
+  onVoiceChange,
+  autoTurn,
+  onAutoTurnChange,
+  autoPlayOnMount = false,
+  onAutoPlayConsumed,
+  onAutoAdvance,
   audioCache,
   currentPage,
   totalPages,
@@ -50,14 +81,29 @@ export default function AudioPlayer({
   const [isLoading, setIsLoading] = useState(false);
   const [hasAudio, setHasAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
 
   const isLastPage = currentPage >= totalPages - 1;
   const isFirstPage = currentPage === 0;
 
+  // 再生終了時の処理。最新のprops/stateを参照できるようrefに持つ
+  const endedRef = useRef<() => void>(() => {});
+  endedRef.current = () => {
+    setIsPlaying(false);
+    if (autoTurn && !isLastPage) {
+      onAutoAdvance();
+    }
+  };
+
   // ページ切替などでアンマウントされたら再生を止める
   useEffect(() => {
     return () => {
-      audioRef.current?.pause();
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.onended = null;
+        audio.onerror = null;
+      }
     };
   }, []);
 
@@ -75,33 +121,19 @@ export default function AudioPlayer({
     setError(null);
 
     try {
-      let url = audioCache.get(text);
+      const url = await fetchTtsUrl(text, voice, audioCache);
 
-      if (!url) {
-        const response = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-
-        if (!response.ok) {
-          throw new Error("音声の生成に失敗しました");
-        }
-
-        const blob = await response.blob();
-        url = URL.createObjectURL(blob);
-        audioCache.set(text, url);
-      }
-
-      const audio = new Audio(url);
+      const audio = getSharedAudio();
+      audio.src = url;
       audio.preservesPitch = true;
+      audio.defaultPlaybackRate = speedConfig[speed].value;
       audio.playbackRate = speedConfig[speed].value;
-      audioRef.current = audio;
-      audio.onended = () => setIsPlaying(false);
+      audio.onended = () => endedRef.current();
       audio.onerror = () => {
         setIsPlaying(false);
         setError("音声の再生に失敗しました");
       };
+      audioRef.current = audio;
       await audio.play();
       setHasAudio(true);
       setIsPlaying(true);
@@ -110,7 +142,35 @@ export default function AudioPlayer({
     } finally {
       setIsLoading(false);
     }
-  }, [text, speed, audioCache]);
+  }, [text, voice, speed, audioCache]);
+
+  // 自動めくりで来たページは自動で読み始める
+  useEffect(() => {
+    if (autoPlayOnMount) {
+      onAutoPlayConsumed?.();
+      generateAudio();
+    }
+    // マウント時に1回だけ判定する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 再生が始まったら、次のページの音声を裏で先読みしておく
+  useEffect(() => {
+    if (isPlaying && nextText) {
+      fetchTtsUrl(nextText, voice, audioCache).catch(() => {});
+    }
+  }, [isPlaying, nextText, voice, audioCache]);
+
+  // こえが変わったら今の音声を破棄（次の再生で新しいこえになる）
+  const prevVoiceRef = useRef(voice);
+  useEffect(() => {
+    if (prevVoiceRef.current !== voice) {
+      prevVoiceRef.current = voice;
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      setHasAudio(false);
+    }
+  }, [voice]);
 
   const handlePlayPause = useCallback(() => {
     const audio = audioRef.current;
@@ -147,8 +207,40 @@ export default function AudioPlayer({
     }
   }, [isLastPage, onFinish, onNextPage]);
 
+  const handleOpenVoicePicker = useCallback(() => {
+    // ためしぎきと重ならないよう、本文の再生は止める
+    audioRef.current?.pause();
+    setIsPlaying(false);
+    setShowVoicePicker(true);
+  }, []);
+
+  const currentVoiceName =
+    VOICES.find((v) => v.id === voice)?.name ?? voice;
+
   return (
     <div className="w-full max-w-md space-y-4">
+      {/* こえ・じどうめくり */}
+      <div className="flex justify-center gap-2">
+        <button
+          onClick={handleOpenVoicePicker}
+          className="action-btn flex items-center gap-1.5 rounded-full bg-card px-4 py-2 text-sm font-bold text-muted-foreground shadow-sm"
+        >
+          <AudioLines className="size-4" />
+          こえ: {currentVoiceName}
+        </button>
+        <button
+          onClick={() => onAutoTurnChange(!autoTurn)}
+          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all ${
+            autoTurn
+              ? "speed-active"
+              : "action-btn bg-card text-muted-foreground shadow-sm"
+          }`}
+        >
+          <Repeat className="size-4" />
+          じどうめくり{autoTurn ? " ON" : ""}
+        </button>
+      </div>
+
       {/* スピード選択 */}
       <div className="flex justify-center gap-2">
         {(Object.keys(speedConfig) as Speed[]).map((key) => (
@@ -255,6 +347,14 @@ export default function AudioPlayer({
           おんせいをつくっているよ...
         </p>
       )}
+
+      {/* こえ選択ダイアログ */}
+      <VoicePicker
+        open={showVoicePicker}
+        onOpenChange={setShowVoicePicker}
+        voice={voice}
+        onVoiceChange={onVoiceChange}
+      />
     </div>
   );
 }
