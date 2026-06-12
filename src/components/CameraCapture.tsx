@@ -293,7 +293,8 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
             items={previews.map((p) => p.id)}
             strategy={horizontalListSortingStrategy}
           >
-            <div className="flex w-full gap-2 overflow-x-auto px-2 pb-2">
+            {/* ✕ボタンが写真の上にはみ出すぶん、上に余白(pt-3)をとる */}
+            <div className="flex w-full gap-2 overflow-x-auto px-2 pb-2 pt-3">
               {previews.map((item, i) => (
                 <SortablePreviewItem
                   key={item.id}
