@@ -61,6 +61,50 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// 写真を縮小してJPEGに変換する。
+// スマホの高解像度写真をそのまま送るとサーバーのサイズ上限（4.5MB）を
+// 超えてOCRが失敗するため、文字が読める範囲（長辺1600px）まで縮小する。
+const MAX_IMAGE_DIMENSION = 1600;
+const JPEG_QUALITY = 0.8;
+
+function fileToCompressedDataUrl(file: File): Promise<string> {
+  return new Promise<string>((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      try {
+        const scale = Math.min(
+          1,
+          MAX_IMAGE_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight)
+        );
+        const width = Math.round(img.naturalWidth * scale);
+        const height = Math.round(img.naturalHeight * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(fileToDataUrl(file));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+      } catch {
+        resolve(fileToDataUrl(file));
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(fileToDataUrl(file));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 async function filesToPreviewItems(
   files: FileList | File[]
 ): Promise<PreviewItem[]> {
@@ -70,7 +114,7 @@ async function filesToPreviewItems(
   return Promise.all(
     fileArray.map(async (file) => {
       const [dataUrl, capturedAt] = await Promise.all([
-        fileToDataUrl(file),
+        fileToCompressedDataUrl(file),
         readExifDate(file),
       ]);
       return { id: generateId(), dataUrl, capturedAt };
@@ -283,8 +327,9 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
           >
             <DialogTitle className="sr-only">拡大プレビュー</DialogTitle>
             <div className="relative flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               {viewingImage && (
+                // data URLのためnext/imageは使えない
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={viewingImage}
                   alt="拡大プレビュー"
