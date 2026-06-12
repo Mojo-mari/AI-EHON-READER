@@ -23,7 +23,7 @@ type PageResult = {
 type ReaderState =
   | { step: "capture" }
   | { step: "processing"; doneCount: number; totalPages: number }
-  | { step: "result"; pages: PageResult[]; currentPage: number }
+  | { step: "result"; pages: PageResult[]; currentPage: number; failedCount?: number }
   | { step: "error"; message: string };
 
 function ReaderPageContent() {
@@ -39,6 +39,22 @@ function ReaderPageContent() {
   const [bookTitle, setBookTitle] = useState("");
   const [bookColor, setBookColor] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // ページごとの音声キャッシュ（テキスト→音声URL）。ページを行き来しても再生成しない
+  const audioCacheRef = useRef<Map<string, string>>(new Map());
+  const clearAudioCache = useCallback(() => {
+    audioCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
+    audioCacheRef.current.clear();
+  }, []);
+
+  // 画面を離れるときにキャッシュを解放
+  useEffect(() => {
+    const cache = audioCacheRef.current;
+    return () => {
+      cache.forEach((url) => URL.revokeObjectURL(url));
+      cache.clear();
+    };
+  }, []);
 
   // URLにbookIdがある場合、localStorageから読み込む
   useEffect(() => {
@@ -64,6 +80,7 @@ function ReaderPageContent() {
     setIsSaved(false);
     setShowSaveForm(false);
     setBookTitle("");
+    clearAudioCache();
 
     const results = await Promise.allSettled(
       imageDataUrls.map(async (url, index) => {
@@ -109,11 +126,15 @@ function ReaderPageContent() {
     if (detectedColor) setBookColor(detectedColor);
 
     const successResults = allFulfilled.filter((r) => r.english !== "");
+    const failedCount = results.filter((r) => r.status === "rejected").length;
 
     if (successResults.length === 0) {
       setState({
         step: "error",
-        message: "えいごの文がみつかりませんでした。\nもういちど撮影してみてね。",
+        message:
+          failedCount > 0
+            ? "よみとりちゅうにエラーがおきました。\n電波のよいところで、もういちどためしてね。"
+            : "えいごの文がみつかりませんでした。\nもういちど撮影してみてね。",
       });
       return;
     }
@@ -122,8 +143,9 @@ function ReaderPageContent() {
       step: "result",
       pages: successResults.map(({ english, japanese }) => ({ english, japanese })),
       currentPage: 0,
+      failedCount,
     });
-  }, []);
+  }, [clearAudioCache]);
 
   const handleNextResultPage = useCallback(() => {
     setState((prev) => {
@@ -149,7 +171,8 @@ function ReaderPageContent() {
     setShowSaveForm(false);
     setBookTitle("");
     setBookColor("");
-  }, []);
+    clearAudioCache();
+  }, [clearAudioCache]);
 
   const handleTextEdit = useCallback(async (newText: string) => {
     let editedPageIndex = 0;
@@ -246,6 +269,11 @@ function ReaderPageContent() {
         {/* 結果表示 */}
         {state.step === "result" && (
           <div className="flex w-full flex-1 flex-col items-center gap-6">
+            {(state.failedCount ?? 0) > 0 && (
+              <p className="w-full max-w-md rounded-xl bg-amber-50 px-4 py-2 text-center text-sm font-bold text-amber-700">
+                ⚠️ {state.failedCount}まいのしゃしんはよみとれなかったよ
+              </p>
+            )}
             <TextDisplay
               key={`text-${state.currentPage}`}
               englishText={state.pages[state.currentPage].english}
@@ -258,6 +286,7 @@ function ReaderPageContent() {
               text={state.pages[state.currentPage].english}
               speed={speed}
               onSpeedChange={setSpeed}
+              audioCache={audioCacheRef.current}
               currentPage={state.currentPage}
               totalPages={state.pages.length}
               onPrevPage={handlePrevResultPage}

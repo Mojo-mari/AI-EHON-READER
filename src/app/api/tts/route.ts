@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, speed = 1.0 } = await request.json();
+    const { text } = await request.json();
 
     if (!text) {
       return NextResponse.json(
@@ -22,11 +22,12 @@ export async function POST(request: NextRequest) {
     // "。" を末尾に付けることで文の終端を明示して読み飛ばしを防止する。
     const processedText = text.replace(/\.{3,}/g, "…").replace(/…\s*$/, "… .");
 
+    // 速度調整はクライアント側の playbackRate で行う
+    // （gpt-4o-mini-tts は speed パラメータ非対応のため）
     const mp3 = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
       voice: "coral",
       input: processedText,
-      speed: speed,
       instructions:
         "You are reading an English picture book aloud to young children. " +
         "Read with warm, expressive intonation and gentle enthusiasm. " +

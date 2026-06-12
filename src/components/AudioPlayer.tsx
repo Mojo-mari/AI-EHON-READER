@@ -25,6 +25,8 @@ type AudioPlayerProps = {
   text: string;
   speed: Speed;
   onSpeedChange: (speed: Speed) => void;
+  /** テキスト→音声URLのキャッシュ（親が管理。ページを行き来しても再生成しない） */
+  audioCache: Map<string, string>;
   currentPage: number;
   totalPages: number;
   onPrevPage: () => void;
@@ -36,6 +38,7 @@ export default function AudioPlayer({
   text,
   speed,
   onSpeedChange,
+  audioCache,
   currentPage,
   totalPages,
   onPrevPage,
@@ -45,33 +48,24 @@ export default function AudioPlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [hasAudio, setHasAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isLastPage = currentPage >= totalPages - 1;
   const isFirstPage = currentPage === 0;
 
-  // テキストが変わったら以前の音声をクリーンアップ
+  // ページ切替などでアンマウントされたら再生を止める
   useEffect(() => {
     return () => {
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
+      audioRef.current?.pause();
     };
-  }, [audioUrl]);
+  }, []);
 
-  // スピード変更時: キャッシュ済み音声をクリアして新しいスピードで再生成できるようにする
+  // 速度変更: 再生中でもその場で反映（preservesPitchで声の高さは変わらない）
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+      audioRef.current.playbackRate = speedConfig[speed].value;
     }
-    setAudioUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setIsPlaying(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [speed]);
 
   const generateAudio = useCallback(async () => {
@@ -81,31 +75,27 @@ export default function AudioPlayer({
     setError(null);
 
     try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          speed: speedConfig[speed].value,
-        }),
-      });
+      let url = audioCache.get(text);
 
-      if (!response.ok) {
-        throw new Error("音声の生成に失敗しました");
+      if (!url) {
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) {
+          throw new Error("音声の生成に失敗しました");
+        }
+
+        const blob = await response.blob();
+        url = URL.createObjectURL(blob);
+        audioCache.set(text, url);
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-
-      // 古いURLをクリーンアップ
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-
-      setAudioUrl(url);
-
-      // 再生
       const audio = new Audio(url);
+      audio.preservesPitch = true;
+      audio.playbackRate = speedConfig[speed].value;
       audioRef.current = audio;
       audio.onended = () => setIsPlaying(false);
       audio.onerror = () => {
@@ -113,17 +103,18 @@ export default function AudioPlayer({
         setError("音声の再生に失敗しました");
       };
       await audio.play();
+      setHasAudio(true);
       setIsPlaying(true);
     } catch {
       setError("音声の生成に失敗しました。もう一度お試しください。");
     } finally {
       setIsLoading(false);
     }
-  }, [text, speed, audioUrl]);
+  }, [text, speed, audioCache]);
 
   const handlePlayPause = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) {
+    if (!audio || !hasAudio) {
       generateAudio();
       return;
     }
@@ -135,18 +126,18 @@ export default function AudioPlayer({
       audio.play();
       setIsPlaying(true);
     }
-  }, [isPlaying, audioUrl, generateAudio]);
+  }, [isPlaying, hasAudio, generateAudio]);
 
   const handleReplay = useCallback(() => {
     const audio = audioRef.current;
-    if (audio && audioUrl) {
+    if (audio && hasAudio) {
       audio.currentTime = 0;
       audio.play();
       setIsPlaying(true);
     } else {
       generateAudio();
     }
-  }, [audioUrl, generateAudio]);
+  }, [hasAudio, generateAudio]);
 
   const handleSkipForward = useCallback(() => {
     if (isLastPage) {
