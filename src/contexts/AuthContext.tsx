@@ -13,6 +13,7 @@ import {
   syncLocalBooksToCloud,
   fetchCloudBooks,
 } from "@/lib/bookshelf-cloud";
+import { clearBooks, replaceBooks } from "@/lib/bookshelf";
 
 type AuthContextType = {
   user: User | null;
@@ -53,9 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ローカルのデータをクラウドに移行してから、クラウドの最新データを取得
         await syncLocalBooksToCloud(supabase, newUser.id);
         const cloudBooks = await fetchCloudBooks(supabase);
-        localStorage.setItem("bookshelf", JSON.stringify(cloudBooks));
-        // BookshelfSectionに更新を通知
-        window.dispatchEvent(new Event("bookshelf-updated"));
+        replaceBooks(cloudBooks);
       }
     });
 
@@ -74,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
+    // 本棚は持ち主のアカウントに紐づくため、端末のコピーは消しておく
+    clearBooks();
   }, [supabase]);
 
   return (

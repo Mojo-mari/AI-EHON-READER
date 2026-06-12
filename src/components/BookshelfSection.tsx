@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { BookOpen, Trash2, LogIn } from "lucide-react";
-import { getBooks, deleteBook, type SavedBook } from "@/lib/bookshelf";
+import {
+  deleteBook,
+  subscribeBookshelf,
+  getBooksSnapshot,
+  getServerBooksSnapshot,
+  type SavedBook,
+} from "@/lib/bookshelf";
 import { deleteBookFromCloud } from "@/lib/bookshelf-cloud";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -33,23 +39,18 @@ function getBookColor(book: SavedBook): string {
 }
 
 export default function BookshelfSection() {
-  const [books, setBooks] = useState<SavedBook[]>([]);
+  // localStorageの本棚を購読（保存・削除・ログイン同期で自動更新される）
+  const books = useSyncExternalStore(
+    subscribeBookshelf,
+    getBooksSnapshot,
+    getServerBooksSnapshot
+  );
   const { user, supabase, signInWithGoogle } = useAuth();
-
-  useEffect(() => {
-    setBooks(getBooks());
-
-    // ログイン時などにクラウドからデータを取得した後、このイベントで再読み込み
-    const handleUpdate = () => setBooks(getBooks());
-    window.addEventListener("bookshelf-updated", handleUpdate);
-    return () => window.removeEventListener("bookshelf-updated", handleUpdate);
-  }, []);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     deleteBook(id);
-    setBooks(getBooks());
 
     // ログイン中はクラウドからも削除
     if (user) {

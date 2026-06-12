@@ -56,6 +56,7 @@ export async function syncLocalBooksToCloud(
       title: b.title,
       pages: b.pages,
       saved_at: b.savedAt,
+      color: b.color,
     }))
   );
 }
