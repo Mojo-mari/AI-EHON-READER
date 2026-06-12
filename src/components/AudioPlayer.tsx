@@ -168,45 +168,60 @@ export default function AudioPlayer({
 
       {/* 再生コントロール */}
       <div className="flex items-center justify-center gap-4">
-        <button
-          onClick={onPrevPage}
-          disabled={isFirstPage}
-          className="control-btn flex h-12 w-12 items-center justify-center rounded-full disabled:opacity-30"
-          title="まえのページ"
-        >
-          <SkipBack className="size-5" />
-        </button>
+        <div className={`flex flex-col items-center gap-1 ${isFirstPage ? "opacity-30" : ""}`}>
+          <button
+            onClick={onPrevPage}
+            disabled={isFirstPage}
+            className="control-btn flex h-12 w-12 items-center justify-center rounded-full"
+            title="まえのページ"
+          >
+            <SkipBack className="size-5" />
+          </button>
+          <span className="text-[10px] font-bold text-muted-foreground">まえ</span>
+        </div>
 
-        <button
-          onClick={handleReplay}
-          disabled={isLoading}
-          className="control-btn flex h-12 w-12 items-center justify-center rounded-full disabled:opacity-50"
-          title="もういちど"
-        >
-          <RotateCcw className="size-5" />
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={handleReplay}
+            disabled={isLoading}
+            className="control-btn flex h-12 w-12 items-center justify-center rounded-full disabled:opacity-50"
+            title="もういちど"
+          >
+            <RotateCcw className="size-5" />
+          </button>
+          <span className="text-[10px] font-bold text-muted-foreground">もういちど</span>
+        </div>
 
-        <button
-          onClick={handlePlayPause}
-          disabled={isLoading}
-          className="play-btn flex h-16 w-16 items-center justify-center rounded-full text-white disabled:opacity-50"
-        >
-          {isLoading ? (
-            <Loader2 className="size-7 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="size-7" />
-          ) : (
-            <Play className="size-7" />
-          )}
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={handlePlayPause}
+            disabled={isLoading}
+            className="play-btn flex h-16 w-16 items-center justify-center rounded-full text-white disabled:opacity-50"
+          >
+            {isLoading ? (
+              <Loader2 className="size-7 animate-spin" />
+            ) : isPlaying ? (
+              <Pause className="size-7" />
+            ) : (
+              <Play className="size-7" />
+            )}
+          </button>
+          {/* 円の高さを左右のボタンと揃えるための透明ラベル */}
+          <span className="invisible text-[10px] font-bold">·</span>
+        </div>
 
-        <button
-          onClick={handleSkipForward}
-          className="control-btn flex h-12 w-12 items-center justify-center rounded-full"
-          title={isLastPage ? "おわり" : "つぎのページ"}
-        >
-          <SkipForward className="size-5" />
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={handleSkipForward}
+            className="control-btn flex h-12 w-12 items-center justify-center rounded-full"
+            title={isLastPage ? "おわり" : "つぎのページ"}
+          >
+            <SkipForward className="size-5" />
+          </button>
+          <span className="text-[10px] font-bold text-muted-foreground">
+            {isLastPage ? "おわり" : "つぎ"}
+          </span>
+        </div>
       </div>
 
       {/* 下部の大きいボタン */}
