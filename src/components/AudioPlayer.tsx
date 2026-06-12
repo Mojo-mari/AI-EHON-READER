@@ -57,6 +57,9 @@ function getSharedAudio(): HTMLAudioElement {
   return sharedAudio;
 }
 
+// じどうめくり: 読み終わってから次のページに進むまでの間（絵を眺める時間）
+const AUTO_TURN_DELAY_MS = 3000;
+
 export default function AudioPlayer({
   text,
   nextText,
@@ -82,20 +85,38 @@ export default function AudioPlayer({
   const [hasAudio, setHasAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
+  // じどうめくりの待ち時間中かどうか
+  const [isAutoWaiting, setIsAutoWaiting] = useState(false);
+  const autoTurnTimerRef = useRef<number | null>(null);
 
   const isLastPage = currentPage >= totalPages - 1;
   const isFirstPage = currentPage === 0;
+
+  // じどうめくりの待ちをキャンセル（ユーザーが何か操作したとき）
+  const cancelAutoTurnWait = useCallback(() => {
+    if (autoTurnTimerRef.current !== null) {
+      clearTimeout(autoTurnTimerRef.current);
+      autoTurnTimerRef.current = null;
+    }
+    setIsAutoWaiting(false);
+  }, []);
 
   // 再生終了時の処理。最新のprops/stateを参照できるようrefに持つ
   const endedRef = useRef<() => void>(() => {});
   endedRef.current = () => {
     setIsPlaying(false);
     if (autoTurn && !isLastPage) {
-      onAutoAdvance();
+      // すぐにめくらず、絵を眺める時間をおいてから次のページへ
+      setIsAutoWaiting(true);
+      autoTurnTimerRef.current = window.setTimeout(() => {
+        autoTurnTimerRef.current = null;
+        setIsAutoWaiting(false);
+        onAutoAdvance();
+      }, AUTO_TURN_DELAY_MS);
     }
   };
 
-  // ページ切替などでアンマウントされたら再生を止める
+  // ページ切替などでアンマウントされたら再生とめくり待ちを止める
   useEffect(() => {
     return () => {
       const audio = audioRef.current;
@@ -104,8 +125,18 @@ export default function AudioPlayer({
         audio.onended = null;
         audio.onerror = null;
       }
+      if (autoTurnTimerRef.current !== null) {
+        clearTimeout(autoTurnTimerRef.current);
+      }
     };
   }, []);
+
+  // じどうめくりをOFFにしたら待ちも取り消す
+  useEffect(() => {
+    if (!autoTurn) {
+      cancelAutoTurnWait();
+    }
+  }, [autoTurn, cancelAutoTurnWait]);
 
   // 速度変更: 再生中でもその場で反映（preservesPitchで声の高さは変わらない）
   useEffect(() => {
@@ -173,6 +204,7 @@ export default function AudioPlayer({
   }, [voice]);
 
   const handlePlayPause = useCallback(() => {
+    cancelAutoTurnWait();
     const audio = audioRef.current;
     if (!audio || !hasAudio) {
       generateAudio();
@@ -186,9 +218,10 @@ export default function AudioPlayer({
       audio.play();
       setIsPlaying(true);
     }
-  }, [isPlaying, hasAudio, generateAudio]);
+  }, [isPlaying, hasAudio, generateAudio, cancelAutoTurnWait]);
 
   const handleReplay = useCallback(() => {
+    cancelAutoTurnWait();
     const audio = audioRef.current;
     if (audio && hasAudio) {
       audio.currentTime = 0;
@@ -197,7 +230,7 @@ export default function AudioPlayer({
     } else {
       generateAudio();
     }
-  }, [hasAudio, generateAudio]);
+  }, [hasAudio, generateAudio, cancelAutoTurnWait]);
 
   const handleSkipForward = useCallback(() => {
     if (isLastPage) {
@@ -209,10 +242,11 @@ export default function AudioPlayer({
 
   const handleOpenVoicePicker = useCallback(() => {
     // ためしぎきと重ならないよう、本文の再生は止める
+    cancelAutoTurnWait();
     audioRef.current?.pause();
     setIsPlaying(false);
     setShowVoicePicker(true);
-  }, []);
+  }, [cancelAutoTurnWait]);
 
   const currentVoiceName =
     VOICES.find((v) => v.id === voice)?.name ?? voice;
@@ -345,6 +379,14 @@ export default function AudioPlayer({
         <p className="flex items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
           <Music className="size-4" />
           おんせいをつくっているよ...
+        </p>
+      )}
+
+      {/* じどうめくり待ち表示 */}
+      {isAutoWaiting && (
+        <p className="flex animate-pulse items-center justify-center gap-1.5 text-center text-sm font-bold text-secondary">
+          <BookOpen className="size-4" />
+          もうすぐ つぎのページ...
         </p>
       )}
 
